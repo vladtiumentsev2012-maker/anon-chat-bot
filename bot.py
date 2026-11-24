@@ -91,7 +91,6 @@ def after_chat_kb(partner_id: int = 0):
     else:
         buttons.append([InlineKeyboardButton(text="🔄 Вернуть прошлого собеседника (25 ⭐️)", callback_data="buy:reconnect")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-шо
 
 
 def vip_shop_kb():
