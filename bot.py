@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO)
 # Поставь False, когда чат раскрутится и захочешь сделать поиск по полу платным (VIP за Stars)
 FREE_MODE = True
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+BOT_TOKEN = "".join(os.getenv("BOT_TOKEN", "").split())
+DATABASE_URL = "".join(os.getenv("DATABASE_URL", "").split())
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
 bot = Bot(token=BOT_TOKEN)
