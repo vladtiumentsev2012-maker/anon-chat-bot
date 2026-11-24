@@ -494,15 +494,18 @@ async def main():
     await db.init_db(DATABASE_URL)
     app = web.Application()
     app.router.add_get("/", health_check)
+
+    from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+    SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path="/webhook")
+    setup_application(app, dp, bot=bot)
+
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-    bot_id = int(BOT_TOKEN.partition(":")[0])
-    bot._me = types.User(id=bot_id, is_bot=True, first_name="AnonChat", username="Kaziavka67_anon_chat_bot")
-    await dp.start_polling(bot)
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
