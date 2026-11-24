@@ -499,7 +499,7 @@ async def main():
     port = int(os.getenv("PORT", "10000"))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-
+    await asyncio.sleep(35)
     await dp.start_polling(bot)
 
 
