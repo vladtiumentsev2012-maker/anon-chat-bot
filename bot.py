@@ -492,8 +492,12 @@ async def health_check(request):
 
 async def on_startup(bot: Bot):
     url = "https://" + "anon-chat-bot-9o14" + ".onrender.com" + "/webhook"
-    await bot.set_webhook(url, drop_pending_updates=True)
-
+    for _ in range(10):
+        try:
+            await bot.set_webhook(url, drop_pending_updates=True)
+            break
+        except Exception:
+            await asyncio.sleep(5)
 
 
 async def main():
@@ -514,7 +518,7 @@ async def main():
     await site.start()
 
     await asyncio.Event().wait()
+
+
 if __name__ == "__main__":
     asyncio.run(main())
-
-
