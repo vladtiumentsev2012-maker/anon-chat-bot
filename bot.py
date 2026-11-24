@@ -82,14 +82,16 @@ def in_chat_kb():
     )
 
 
-def after_chat_kb():
+def after_chat_kb(partner_id: int = 0):
+    buttons = []
+    if partner_id:
+        buttons.append([InlineKeyboardButton(text="❤️ Оценить собеседника (Лайк)", callback_data=f"like:{partner_id}")])
     if FREE_MODE:
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🎲 Найти нового собеседника", callback_data="search:ANY")]
-        ])
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="↩️ Вернуть прошлого собеседника (25 ⭐️)", callback_data="buy:reconnect")]
-    ])
+        buttons.append([InlineKeyboardButton(text="🔎 Найти нового собеседника", callback_data="search:ANY")])
+    else:
+        buttons.append([InlineKeyboardButton(text="🔄 Вернуть прошлого собеседника (25 ⭐️)", callback_data="buy:reconnect")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+шо
 
 
 def vip_shop_kb():
@@ -183,8 +185,9 @@ async def stop_chat(user_id: int, notify_partner: bool = True):
             "🛑 **Диалог завершён.**",
             parse_mode="Markdown",
             reply_markup=main_menu_kb(),
-        )
-        await bot.send_message(user_id, "Продолжить общение:", reply_markup=after_chat_kb())
+        ) 
+             await bot.send_message(user_id, "Продолжить общение:", reply_markup=after_chat_kb(partner_id))
+
         if notify_partner:
             await bot.send_message(
                 partner_id,
@@ -192,7 +195,7 @@ async def stop_chat(user_id: int, notify_partner: bool = True):
                 parse_mode="Markdown",
                 reply_markup=main_menu_kb(),
             )
-            await bot.send_message(partner_id, "Продолжить общение:", reply_markup=after_chat_kb())
+                        await bot.send_message(partner_id, "Продолжить общение:", reply_markup=after_chat_kb(user_id)) 
 
 
 @dp.message(CommandStart())
@@ -336,7 +339,8 @@ async def btn_profile(message: types.Message):
         f"👤 **Твой профиль**\n"
         f"• Пол: {g_text}\n"
         f"• Проведено чатов: {user['chats_count']}\n"
-        f"• Приглашено друзей: {user['referrals']}\n\n"
+                f"• Приглашено друзей: {user['referrals']}\n"
+        f"• ❤️ Получено лайков: {user_likes.get(message.from_user.id, 0)}\n\n"
         f"🔗 **Твоя ссылка для приглашения друзей** (отправь другу, чтобы в чате было больше людей):\n"
         f"`{ref_link}`",
         parse_mode="Markdown",
@@ -466,7 +470,24 @@ async def cmd_broadcast(message: types.Message, command: CommandObject):
             pass
     await message.answer(f"📢 Рассылка завершена. Доставлено: {sent} из {len(ids)}.")
 
+user_likes = {}
+liked_pairs = set()
 
+@dp.callback_query(F.data.startswith("like:"))
+async def cb_like_partner(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    partner_id = int(callback.data.split(":")[1])
+    if (uid, partner_id) in liked_pairs:
+        await callback.answer("Ты уже оценил этого собеседника!", show_alert=True)
+        return
+    liked_pairs.add((uid, partner_id))
+    user_likes[partner_id] = user_likes.get(partner_id, 0) + 1
+    await callback.message.edit_text("💖 Спасибо! Твой лайк отправлен собеседнику.")
+    await callback.answer("Лайк отправлен!")
+    try:
+        await bot.send_message(partner_id, f"💖 **Прошлый собеседник поставил тебе лайк!**\nВсего у тебя лайков: **{user_likes[partner_id]}**", parse_mode="Markdown")
+    except Exception:
+        pass
 rps_games = {}
 RPS_LABELS = {"rock": "🪨 Камень", "scissors": "✂️ Ножницы", "paper": "📄 Бумага"}
 
