@@ -499,7 +499,9 @@ async def main():
     port = int(os.getenv("PORT", "10000"))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    await asyncio.sleep(35)
+
+    bot_id = int(BOT_TOKEN.split(":")[0])
+    bot._me = types.User(id=bot_id, is_bot=True, first_name="AnonChat", username="Kaziavka67_anon_chat_bot")
     await dp.start_polling(bot)
 
 
