@@ -74,6 +74,7 @@ def searching_kb():
 def in_chat_kb():
     return ReplyKeyboardMarkup(
         keyboard=[
+                        [KeyboardButton(text="✂️ Камень, ножницы, бумага")],
             [KeyboardButton(text="➡️ Следующий"), KeyboardButton(text="🛑 Завершить чат")],
             [KeyboardButton(text="⚠️ Пожаловаться")],
         ],
@@ -329,7 +330,7 @@ async def btn_vip(message: types.Message):
 async def btn_profile(message: types.Message):
     user = await db.get_user(message.from_user.id)
     me = await bot.get_me()
-    ref_link = f"https://t.me{me.username}?start={message.from_user.id}"
+    ref_link = f"https://t.me/{me.username}?start={message.from_user.id}"
     g_text = "Парень 👨" if user["gender"] == "M" else "Девушка 👩"
     await message.answer(
         f"👤 **Твой профиль**\n"
@@ -464,6 +465,57 @@ async def cmd_broadcast(message: types.Message, command: CommandObject):
         except Exception:
             pass
     await message.answer(f"📢 Рассылка завершена. Доставлено: {sent} из {len(ids)}.")
+
+
+rps_games = {}
+RPS_LABELS = {"rock": "🪨 Камень", "scissors": "✂️ Ножницы", "paper": "📄 Бумага"}
+
+@dp.message(F.text == "✂️ Камень, ножницы, бумага")
+async def btn_start_rps(message: types.Message):
+    uid = message.from_user.id
+    partner_id = active_chats.get(uid)
+    if not partner_id:
+        await message.answer("Игра доступна только в диалоге!")
+        return
+    rps_games[frozenset({uid, partner_id})] = {}
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🪨 Камень", callback_data="rps:rock"),
+        InlineKeyboardButton(text="✂️ Ножницы", callback_data="rps:scissors"),
+        InlineKeyboardButton(text="📄 Бумага", callback_data="rps:paper"),
+    ]])
+    await bot.send_message(uid, "🎮 **Камень, ножницы, бумага!** Делай выбор:", parse_mode="Markdown", reply_markup=kb)
+    await bot.send_message(partner_id, "🎮 **Собеседник позвал в «Камень, ножницы, бумага»!** Делай выбор:", parse_mode="Markdown", reply_markup=kb)
+
+@dp.callback_query(F.data.startswith("rps:"))
+async def cb_rps_choice(callback: types.CallbackQuery):
+    uid = callback.from_user.id
+    partner_id = active_chats.get(uid)
+    if not partner_id:
+        await callback.answer("Чат завершён.", show_alert=True)
+        return
+    choice = callback.data.split(":")[1]
+    pair = frozenset({uid, partner_id})
+    game = rps_games.setdefault(pair, {})
+    if uid in game:
+        await callback.answer("Ты уже выбрал! Ждём соперника.", show_alert=True)
+        return
+    game[uid] = choice
+    await callback.message.edit_text(f"✅ Твой выбор: **{RPS_LABELS[choice]}**. Ждём соперника...", parse_mode="Markdown")
+    await callback.answer()
+    if partner_id not in game:
+        await bot.send_message(partner_id, "⚡ Собеседник уже сделал ход! Твоя очередь.")
+        return
+    p_choice = game[partner_id]
+    rps_games.pop(pair, None)
+    wins = {("rock", "scissors"), ("scissors", "paper"), ("paper", "rock")}
+    if choice == p_choice:
+        r1 = r2 = "🤝 **Ничья!**"
+    elif (choice, p_choice) in wins:
+        r1, r2 = "🏆 **Ты победил!**", "😔 **Ты проиграл!**"
+    else:
+        r1, r2 = "😔 **Ты проиграл!**", "🏆 **Ты победил!**"
+    await bot.send_message(uid, f"🎲 Итог: ты — {RPS_LABELS[choice]}, соперник — {RPS_LABELS[p_choice]}\n{r1}", parse_mode="Markdown")
+    await bot.send_message(partner_id, f"🎲 Итог: ты — {RPS_LABELS[p_choice]}, соперник — {RPS_LABELS[choice]}\n{r2}", parse_mode="Markdown")
 
 
 @dp.message()
