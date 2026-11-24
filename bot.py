@@ -185,16 +185,16 @@ async def stop_chat(user_id: int, notify_partner: bool = True):
             parse_mode="Markdown",
             reply_markup=main_menu_kb(),
         ) 
-             await bot.send_message(user_id, "Продолжить общение:", reply_markup=after_chat_kb(partner_id))
+        await bot.send_message(user_id, "Продолжить общение:", reply_markup=after_chat_kb(partner_id))
 
         if notify_partner:
-            await bot.send_message(
+        await bot.send_message(
                 partner_id,
                 "🛑 **Собеседник завершил диалог.**",
                 parse_mode="Markdown",
                 reply_markup=main_menu_kb(),
             )
-                        await bot.send_message(partner_id, "Продолжить общение:", reply_markup=after_chat_kb(user_id)) 
+        await bot.send_message(partner_id, "Продолжить общение:", reply_markup=after_chat_kb(user_id)) 
 
 
 @dp.message(CommandStart())
