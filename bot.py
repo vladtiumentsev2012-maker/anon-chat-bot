@@ -179,32 +179,30 @@ async def start_search(user_id: int, target_gender: str):
 
 
 async def stop_chat(user_id: int, notify_partner: bool = True):
-        cancel_ai_timer(user_id)
-        waiting_queue.pop(user_id, None)
-        if ai_chats.pop(user_id, None) is not None:
-            await bot.send_message(user_id, "🛑 **Диалог завершён.**", parse_mode="Markdown", reply_markup=main_menu_kb())
-            return
-    partner_id = active_chats.pop(user_id, None)
-    if partner_id:
-        active_chats.pop(partner_id, None)
-        await bot.send_message(
-            user_id,
-            "🛑 **Диалог завершён.**",
-            parse_mode="Markdown",
-            reply_markup=main_menu_kb(),
-        ) 
-        await bot.send_message(user_id, "Продолжить общение:", reply_markup=after_chat_kb(partner_id))
-
-        if notify_partner:
+    cancel_ai_timer(user_id)
+    waiting_queue.pop(user_id, None)
+    if ai_chats.pop(user_id, None) is not None:
+        await bot.send_message(user_id, "🛑 **Диалог завершён.**", parse_mode="Markdown", reply_markup=main_menu_kb())
+    else:
+        partner_id = active_chats.pop(user_id, None)
+        if partner_id:
+            active_chats.pop(partner_id, None)
             await bot.send_message(
-                partner_id,
-                "🛑 **Собеседник завершил диалог.**",
+                user_id,
+                "🛑 **Диалог завершён.**",
                 parse_mode="Markdown",
                 reply_markup=main_menu_kb(),
             )
-            await bot.send_message(partner_id, "Продолжить общение:", reply_markup=after_chat_kb(user_id))
+            await bot.send_message(user_id, "Продолжить общение:", reply_markup=after_chat_kb(partner_id))
 
-
+            if notify_partner:
+                await bot.send_message(
+                    partner_id,
+                    "🛑 **Собеседник завершил диалог.**",
+                    parse_mode="Markdown",
+                    reply_markup=main_menu_kb(),
+                )
+                await bot.send_message(partner_id, "Продолжить общение:", reply_markup=after_chat_kb(user_id))
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, command: CommandObject):
     ref_id = None
