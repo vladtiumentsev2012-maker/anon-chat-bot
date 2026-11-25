@@ -64,9 +64,9 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         history = history[-12:]
         session["history"] = history
 
-    gh_token = os.getenv("GITHUB_TOKEN", "").strip()
+       gh_token = os.getenv("GITHUB_TOKEN", "").strip()
     d = chr(46)
-    url = f"https://models{d}inference{d}ai{d}azure{d}com/chat/completions"
+    url = f"https://models{d}github{d}ai/inference/chat/completions"
     headers = {
         "Authorization": f"Bearer {gh_token}",
         "Content-Type": "application/json",
@@ -86,7 +86,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
             async with http.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    reply = data["choices"]["message"]["content"].strip()
+                    reply = data["choices"][0]["message"]["content"].strip()
                     reply = reply.rstrip(".").strip().lower()
                     if reply:
                         history.append({"role": "assistant", "content": reply})
@@ -94,7 +94,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                 else:
                     logging.error(f"GitHub AI status {resp.status}: {await resp.text()}")
     except Exception as e:
-        logging.error(f"GitHub AI error: {e}")
+        logging.error(f"GitHub AI error: {e}") 
 
     return "чето инет лагает, повтори"
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
