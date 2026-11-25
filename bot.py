@@ -70,7 +70,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         lines.append(f"{who}: {msg['content']}")
     lines.append("Ты:")
 
-        encoded = urllib.parse.quote("\n".join(lines))
+    encoded = urllib.parse.quote("\n".join(lines))
     url = "https://" + "text.pollinations.ai/" + f"{encoded}?model=mistral"
 
     try:
