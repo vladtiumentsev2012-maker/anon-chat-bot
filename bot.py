@@ -72,7 +72,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "gpt-4o-mini",
+        "model": "openai/gpt-4o-mini",
         "messages": [
             {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
             *history,
