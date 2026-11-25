@@ -548,7 +548,7 @@ async def cb_rps_choice(callback: types.CallbackQuery):
 @dp.message()
 async def relay_messages(message: types.Message):
     uid = message.from_user.id
-        if uid in ai_chats:
+    if uid in ai_chats:
         if not message.text:
             await message.answer("я щас без наушников и инет тупит, напиши текстом")
             return
