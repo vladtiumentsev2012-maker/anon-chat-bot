@@ -70,20 +70,20 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         lines.append(f"{who}: {msg['content']}")
     lines.append("Ты:")
 
-    encoded = urllib.parse.quote("\n".join(lines))
-    url = "https://" + "text.pollinations.ai/" + f"{encoded}?model=openai"
+        encoded = urllib.parse.quote("\n".join(lines))
+    url = "https://" + "text.pollinations.ai/" + f"{encoded}?model=mistral"
 
     try:
         async with aiohttp.ClientSession() as http:
             async with http.get(url, timeout=aiohttp.ClientTimeout(total=12)) as resp:
                 if resp.status == 200:
                     reply = (await resp.text()).strip()
-                    for prefix in ("Ты:", "ты:", '"', "'"):
+                    reply = reply.split("<|")[0].split("\n")[0].strip()
+                    for prefix in ("Ты:", "ты:", '"', "'", "- "):
                         if reply.startswith(prefix):
                             reply = reply[len(prefix):].strip()
-                    reply = reply.rstrip(".").strip()
-                    if reply:
-                        reply = reply.lower() + reply[1:]
+                    reply = reply.rstrip(".").strip().lower()
+                    if reply and len(reply) < 120:
                         history.append({"role": "assistant", "content": reply})
                         return reply
     except Exception as e:
