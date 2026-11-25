@@ -110,7 +110,7 @@ def is_compatible(u1_id: int, u1_data: dict, u2_id: int, u2_data: dict) -> bool:
 
 
 async def start_search(user_id: int, target_gender: str):
-        if user_id in active_chats or user_id in ai_chats:
+    if user_id in active_chats or user_id in ai_chats:
         await bot.send_message(user_id, "⚠️ Ты уже в диалоге! Сначала заверши текущий чат.", reply_markup=in_chat_kb())
         return
 
