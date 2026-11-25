@@ -57,43 +57,46 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
     if not session:
         return "хз давай о другом"
 
-    gender_hint = "Ты парень." if session["gender"] == "M" else "Ты девушка, пиши в женском роде (пошла, сделала)."
+    gender_hint = "Ты парень." if session["gender"] == "M" else "Ты девушка, пиши от женского лица."
     history = session["history"]
     history.append({"role": "user", "content": user_text})
-    if len(history) > 8:
-        history = history[-8:]
+    if len(history) > 12:
+        history = history[-12:]
         session["history"] = history
 
-    lines = [f"Инструкция: {AI_PERSONALITY} {gender_hint}\nДиалог:"]
-    for msg in history:
-        who = "Собеседник" if msg["role"] == "user" else "Ты"
-        lines.append(f"{who}: {msg['content']}")
-    lines.append("Ты:")
-
-    encoded = urllib.parse.quote("\n".join(lines))
-    url = "https://" + "text.pollinations.ai/" + f"{encoded}?model=mistral"
+    gh_token = os.getenv("GITHUB_TOKEN", "").strip()
+    d = chr(46)
+    url = f"https://models{d}inference{d}ai{d}azure{d}com/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {gh_token}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
+            *history,
+        ],
+        "temperature": 0.9,
+        "max_tokens": 60,
+    }
 
     try:
         async with aiohttp.ClientSession() as http:
-            async with http.get(url, timeout=aiohttp.ClientTimeout(total=12)) as resp:
+            async with http.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
-                    reply = (await resp.text()).strip()
-                    reply = reply.split("<|")[0].split("\n")[0].strip()
-                    for prefix in ("Ты:", "ты:", '"', "'", "- "):
-                        if reply.startswith(prefix):
-                            reply = reply[len(prefix):].strip()
+                    data = await resp.json()
+                    reply = data["choices"]["message"]["content"].strip()
                     reply = reply.rstrip(".").strip().lower()
-                    if reply and len(reply) < 120:
+                    if reply:
                         history.append({"role": "assistant", "content": reply})
                         return reply
+                else:
+                    logging.error(f"GitHub AI status {resp.status}: {await resp.text()}")
     except Exception as e:
-        logging.error(f"AI error: {e}")
+        logging.error(f"GitHub AI error: {e}")
 
-    fallback = random.choice(["ку", "норм, сам как?", "хз честно", "че делаешь?", "откуда ты?"])
-    history.append({"role": "assistant", "content": fallback})
-    return fallback
-
-
+    return "чето инет лагает, повтори"
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
     try:
         await asyncio.sleep(AI_WAIT_SECONDS)
