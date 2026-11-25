@@ -64,7 +64,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         history = history[-12:]
         session["history"] = history
 
-       gh_token = os.getenv("GITHUB_TOKEN", "").strip()
+    gh_token = os.getenv("GITHUB_TOKEN", "").strip()
     d = chr(46)
     url = f"https://models{d}github{d}ai/inference/chat/completions"
     headers = {
