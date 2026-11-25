@@ -110,7 +110,7 @@ def is_compatible(u1_id: int, u1_data: dict, u2_id: int, u2_data: dict) -> bool:
 
 
 async def start_search(user_id: int, target_gender: str):
-    if user_id in active_chats:
+        if user_id in active_chats or user_id in ai_chats:
         await bot.send_message(user_id, "⚠️ Ты уже в диалоге! Сначала заверши текущий чат.", reply_markup=in_chat_kb())
         return
 
@@ -145,6 +145,8 @@ async def start_search(user_id: int, target_gender: str):
     if matched_id:
         waiting_queue.pop(matched_id, None)
         waiting_queue.pop(user_id, None)
+        cancel_ai_timer(matched_id)
+        cancel_ai_timer(user_id)
         active_chats[user_id] = matched_id
         active_chats[matched_id] = user_id
 
@@ -159,6 +161,8 @@ async def start_search(user_id: int, target_gender: str):
         await bot.send_message(matched_id, msg, parse_mode="Markdown", reply_markup=in_chat_kb())
     else:
         waiting_queue[user_id] = my_data
+        cancel_ai_timer(user_id)
+        ai_wait_tasks[user_id] = asyncio.create_task(connect_ai_after_timeout(user_id, target_gender))
         mode_text = {
             "ANY": "случайного собеседника",
             "F": "девушку",
@@ -175,7 +179,11 @@ async def start_search(user_id: int, target_gender: str):
 
 
 async def stop_chat(user_id: int, notify_partner: bool = True):
-    waiting_queue.pop(user_id, None)
+        cancel_ai_timer(user_id)
+        waiting_queue.pop(user_id, None)
+        if ai_chats.pop(user_id, None) is not None:
+        await bot.send_message(user_id, "🛑 **Диалог завершён.**", parse_mode="Markdown", reply_markup=main_menu_kb())
+        return
     partner_id = active_chats.pop(user_id, None)
     if partner_id:
         active_chats.pop(partner_id, None)
@@ -271,6 +279,7 @@ async def btn_find_m(message: types.Message):
 
 @dp.message(F.text == "❌ Отменить поиск")
 async def btn_cancel_search(message: types.Message):
+    cancel_ai_timer(message.from_user.id)
     waiting_queue.pop(message.from_user.id, None)
     await message.answer("❌ Поиск отменён.", reply_markup=main_menu_kb())
 
@@ -541,6 +550,16 @@ async def cb_rps_choice(callback: types.CallbackQuery):
 @dp.message()
 async def relay_messages(message: types.Message):
     uid = message.from_user.id
+        if uid in ai_chats:
+        if not message.text:
+            await message.answer("я щас без наушников и инет тупит, напиши текстом")
+            return
+        await bot.send_chat_action(uid, "typing")
+        await asyncio.sleep(random.uniform(1.2, 2.4))
+        reply = await generate_ai_reply(uid, message.text)
+        if uid in ai_chats:
+            await message.answer(reply)
+        return
     partner_id = active_chats.get(uid)
     if not partner_id:
         await message.answer("Нажми кнопку поиска ниже, чтобы найти собеседника 👇", reply_markup=main_menu_kb())
