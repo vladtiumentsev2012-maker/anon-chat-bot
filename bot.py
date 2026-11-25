@@ -1,6 +1,18 @@
 import asyncio
 import logging
 import os
+import random
+import urllib.parse
+import aiohttp
+
+AI_WAIT_SECONDS = 10
+AI_PERSONALITY = (
+    "Ты реальный 14-15 летний подросток в анонимном чате Telegram. "
+    "Правила: пиши максимально коротко (1-6 слов), строго с маленькой буквы, "
+    "без точек в конце, без скобочек-смайликов и без душных длинных текстов. "
+    "Никогда не говори что ты бот или нейросеть. Не пиши 'здравствуйте' или 'чем помочь'. "
+    "Общайся как обычный школьник: 'ку', 'норм, сам как', 'хз', 'жиза', 'че делаешь', 'откуда ты'."
+)
 from datetime import timezone
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
@@ -30,6 +42,78 @@ dp = Dispatcher()
 waiting_queue: dict[int, dict] = {}
 active_chats: dict[int, int] = {}
 last_target: dict[int, str] = {}
+ai_chats: dict[int, dict] = {}
+ai_wait_tasks: dict[int, asyncio.Task] = {}
+
+
+def cancel_ai_timer(user_id: int):
+    task = ai_wait_tasks.pop(user_id, None)
+    if task and not task.done():
+        task.cancel()
+
+
+async def generate_ai_reply(user_id: int, user_text: str) -> str:
+    session = ai_chats.get(user_id)
+    if not session:
+        return "хз давай о другом"
+
+    gender_hint = "Ты парень." if session["gender"] == "M" else "Ты девушка, пиши в женском роде (пошла, сделала)."
+    history = session["history"]
+    history.append({"role": "user", "content": user_text})
+    if len(history) > 8:
+        history = history[-8:]
+        session["history"] = history
+
+    lines = [f"Инструкция: {AI_PERSONALITY} {gender_hint}\nДиалог:"]
+    for msg in history:
+        who = "Собеседник" if msg["role"] == "user" else "Ты"
+        lines.append(f"{who}: {msg['content']}")
+    lines.append("Ты:")
+
+    encoded = urllib.parse.quote("\n".join(lines))
+    url = "https://" + "text.pollinations.ai/" + f"{encoded}?model=openai"
+
+    try:
+        async with aiohttp.ClientSession() as http:
+            async with http.get(url, timeout=aiohttp.ClientTimeout(total=12)) as resp:
+                if resp.status == 200:
+                    reply = (await resp.text()).strip()
+                    for prefix in ("Ты:", "ты:", '"', "'"):
+                        if reply.startswith(prefix):
+                            reply = reply[len(prefix):].strip()
+                    reply = reply.rstrip(".").strip()
+                    if reply:
+                        reply = reply.lower() + reply[1:]
+                        history.append({"role": "assistant", "content": reply})
+                        return reply
+    except Exception as e:
+        logging.error(f"AI error: {e}")
+
+    fallback = random.choice(["ку", "норм, сам как?", "хз честно", "че делаешь?", "откуда ты?"])
+    history.append({"role": "assistant", "content": fallback})
+    return fallback
+
+
+async def connect_ai_after_timeout(user_id: int, target_gender: str):
+    try:
+        await asyncio.sleep(AI_WAIT_SECONDS)
+        if user_id not in waiting_queue or user_id in active_chats or user_id in ai_chats:
+            return
+        waiting_queue.pop(user_id, None)
+        ai_wait_tasks.pop(user_id, None)
+
+        chosen_gender = target_gender if target_gender in ("M", "F") else random.choice(["M", "F"])
+        ai_chats[user_id] = {"gender": chosen_gender, "history": []}
+
+        await bot.send_message(
+            user_id,
+            "✅ **Собеседник найден! Общайтесь.**\n"
+            "Используй кнопки ниже, чтобы переключить диалог или завершить его.",
+            parse_mode="Markdown",
+            reply_markup=in_chat_kb(),
+        )
+    except asyncio.CancelledError:
+        pass
 
 
 def gender_kb():
