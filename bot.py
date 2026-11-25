@@ -85,7 +85,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         async with aiohttp.ClientSession() as http:
             async with http.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
-                    data = await resp.json()
+                    data = await resp.json(content_type=None)
                     reply = data["choices"][0]["message"]["content"].strip()
                     reply = reply.rstrip(".").strip().lower()
                     if reply:
