@@ -182,8 +182,8 @@ async def stop_chat(user_id: int, notify_partner: bool = True):
         cancel_ai_timer(user_id)
         waiting_queue.pop(user_id, None)
         if ai_chats.pop(user_id, None) is not None:
-        await bot.send_message(user_id, "🛑 **Диалог завершён.**", parse_mode="Markdown", reply_markup=main_menu_kb())
-        return
+            await bot.send_message(user_id, "🛑 **Диалог завершён.**", parse_mode="Markdown", reply_markup=main_menu_kb())
+            return
     partner_id = active_chats.pop(user_id, None)
     if partner_id:
         active_chats.pop(partner_id, None)
