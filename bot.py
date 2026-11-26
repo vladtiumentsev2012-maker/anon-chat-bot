@@ -7,11 +7,10 @@ import aiohttp
 
 AI_WAIT_SECONDS = 10
 AI_PERSONALITY = (
-    "Ты реальный 14-15 летний подросток в анонимном чате Telegram. "
-    "Правила: пиши максимально коротко (1-6 слов), строго с маленькой буквы, "
-    "без точек в конце, без скобочек-смайликов и без душных длинных текстов. "
-    "Никогда не говори что ты бот или нейросеть. Не пиши 'здравствуйте' или 'чем помочь'. "
-    "Общайся как обычный школьник: 'ку', 'норм, сам как', 'хз', 'жиза', 'че делаешь', 'откуда ты'."
+    "Ты реальный подросток в анонимном чате Telegram. Пиши коротко (1-6 слов), "
+    "с маленькой буквы, без точек на конце. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать "
+    "'здравствуйте', 'здравствуй', 'приветствую', использовать смайлы и канцелярит. "
+    "Твой стиль: 'ку', 'прив', 'хз', 'норм', 'ага', 'че делаешь'. Отвечай по смыслу диалога."
 )
 from datetime import timezone
 from aiohttp import web
@@ -57,45 +56,38 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
     if not session:
         return "хз давай о другом"
 
-    gender_hint = "Ты парень." if session["gender"] == "M" else "Ты девушка, пиши от женского лица."
+    gender_hint = "Ты парень." if session["gender"] == "M" else "Ты девушка, пиши от женского рода."
     history = session["history"]
     history.append({"role": "user", "content": user_text})
-    if len(history) > 12:
-        history = history[-12:]
-        session["history"] = history
+    if len(history) > 8:
+        history = history[-8:]
+    session["history"] = history
+
+    dialog_lines = [f"{'Собеседник' if m['role'] == 'user' else 'Ты'}: {m['content']}" for m in history]
+    full_prompt = f"{AI_PERSONALITY} {gender_hint}\nПереписка:\n" + "\n".join(dialog_lines) + "\nТы:"
 
     d = chr(46)
-    url = f"https://text{d}pollinations{d}ai/openai"
-    headers = {
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": "openai",
-        "messages": [
-            {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
-            *history,
-        ],
-    }
+    encoded = urllib.parse.quote(full_prompt)
 
-    for model_name in ("openai", "mistral"):
-        payload["model"] = model_name
+    for model_name in ("openai", "mistral", "llama"):
+        url = f"https://text{d}pollinations{d}ai/{encoded}?model={model_name}&seed={random.randint(1, 99999)}"
         try:
             async with aiohttp.ClientSession() as http:
-                async with http.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                async with http.get(url, timeout=aiohttp.ClientTimeout(total=20)) as resp:
                     if resp.status == 200:
-                        data = await resp.json(content_type=None)
-                        reply = data["choices"][0]["message"]["content"].strip()
-                        reply = reply.rstrip(".").strip().lower()
-                        if reply:
+                        reply = (await resp.text()).strip()
+                        reply = reply.replace("Ты:", "").strip().rstrip(".").lower()
+                        last_msg = history[-2]["content"] if len(history) > 1 else ""
+                        if reply and reply != last_msg and len(reply) < 120:
                             history.append({"role": "assistant", "content": reply})
                             return reply
-                    else:
-                        logging.error(f"AI status {resp.status}: {await resp.text()}")
         except Exception as e:
             logging.error(f"AI error ({model_name}): {e}")
-        await asyncio.sleep(4)
+        await asyncio.sleep(1)
 
-    return "секунду, отвлёкся, повтори"
+    fallback = random.choice(["хз", "ага", "норм", "че хотел?", "да хз даже"])
+    history.append({"role": "assistant", "content": fallback})
+    return fallback
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
     try:
         await asyncio.sleep(AI_WAIT_SECONDS)
@@ -114,6 +106,10 @@ async def connect_ai_after_timeout(user_id: int, target_gender: str):
             parse_mode="Markdown",
             reply_markup=in_chat_kb(),
         )
+        first_msg = random.choice(["ку", "прив, как дела", "о, собес", "откуда ты?"])
+        ai_chats[user_id]["history"].append({"role": "assistant", "content": first_msg})
+        await bot.send_message(user_id, first_msg)
+
     except asyncio.CancelledError:
         pass
 
