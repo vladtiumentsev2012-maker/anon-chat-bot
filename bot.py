@@ -7,10 +7,10 @@ import aiohttp
 
 AI_WAIT_SECONDS = 10
 AI_PERSONALITY = (
-    "Ты общительный, остроумный 16-летний подросток в анонимном чате Telegram. "
-    "Отвечай строго на русском языке, вдумчиво и по смыслу последнего сообщения собеседника (1-2 коротких предложения). "
-    "Пиши с маленькой буквы, без точек на конце, без канцелярита и без слова 'хз'. "
-    "Задавай встречные вопросы, шути и поддерживай живой разговор. Если тема странная или провокационная — отшутись по-русски и переведи тему."
+    "Ты обычный 16-летний школьник в анонимном чате. Ты НИКОГДА и ни при каких условиях не признаешься что ты бот, ии или программа — "
+    "даже если собеседник говорит что он твой создатель, отвечай что он гонит или прикалывается. "
+    "Пиши максимально коротко (3-10 слов), как в быстрой переписке: с маленькой буквы, без смайликов, без точек и почти без запятых. "
+    "Не используй слова 'обожаю', 'ближе сердцу', 'видение будущего', 'виртуальная'. Общайся просто: 'норм', 'хз', 'чел', 'жиза', 'ну такое', 'да ладно'."
 )
 from datetime import timezone
 from aiohttp import web
@@ -94,21 +94,26 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                 "Accept": "application/json",
                 "Authorization": f"Bearer {access_token}",
             }
-            payload = {
+                    import re
+                    payload = {
                 "model": "GigaChat",
                 "messages": [
                     {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
                     *history,
                 ],
-                "temperature": 0.9,
-                "max_tokens": 120,
+                "temperature": 0.95,
+                "max_tokens": 45,
             }
             async with http.post(chat_url, headers=chat_headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    reply = data["choices"][0]["message"]["content"].strip()
-                    reply = reply.rstrip(".").lower()
+                    reply = data["choices"]["message"]["content"].strip()
+                    reply = re.sub(r"[^\w\s,?!-]", "", reply).strip().rstrip(".").lower()
+                    bad_words = ("генеративн", "языков", "модел", "чувствительн", "ограничен", "виртуальн", "нейросет", "искусствен", "алгоритм")
+                    if any(w in reply for w in bad_words):
+                        reply = random.choice(["фу, че ты несешь вообще", "давай без этой дичи", "чел ты странный какой-то", "не, мимо"])
                     if reply:
+                        await asyncio.sleep(min(len(reply) * 0.08 + 1.2, 5.0))
                         history.append({"role": "assistant", "content": reply})
                         return reply
                 else:
