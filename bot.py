@@ -107,7 +107,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
             async with http.post(chat_url, headers=chat_headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    reply = data["choices"]["message"]["content"].strip()
+                    reply = data["choices"].pop(0)["message"]["content"].strip()
                     reply = re.sub(r"[^\w\s,?!-]", "", reply).strip().rstrip(".").lower()
                     bad_words = ("генеративн", "языков", "модел", "чувствительн", "ограничен", "виртуальн", "нейросет", "искусствен", "алгоритм")
                     if any(w in reply for w in bad_words):
