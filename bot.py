@@ -64,21 +64,17 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         history = history[-12:]
         session["history"] = history
 
-    hf_token = "".join(["hf_oqQFpu", "spKmCjYaa", "mVZVgOjBg", "oYcNSUDnnf"])
     d = chr(46)
-    url = f"https://router{d}huggingface{d}co/v1/chat/completions"
+    url = f"https://text{d}pollinations{d}ai/openai"
     headers = {
-        "Authorization": f"Bearer {hf_token}",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "Qwen/Qwen2.5-72B-Instruct",
+        "model": "openai",
         "messages": [
             {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
             *history,
         ],
-        "temperature": 0.9,
-        "max_tokens": 60,
     }
 
     try:
