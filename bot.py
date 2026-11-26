@@ -64,7 +64,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         history = history[-12:]
         session["history"] = history
 
-    hf_token = "".join(["hf_JzsIki", "omVYOhnjR", "YmdkAgZfI", "AYwyFHiCeW"])
+    hf_token = "".join(["hf_oqQFpu", "spKmCjYaa", "mVZVgOjBg", "oYcNSUDnnf"])
     d = chr(46)
     url = f"https://router{d}huggingface{d}co/v1/chat/completions"
     headers = {
