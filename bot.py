@@ -77,21 +77,25 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         ],
     }
 
-    try:
-        async with aiohttp.ClientSession() as http:
-            async with http.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                if resp.status == 200:
-                    data = await resp.json(content_type=None)
-                    reply = data["choices"][0]["message"]["content"].strip()
-                    reply = reply.rstrip(".").strip().lower()
-                    if reply:
-                        history.append({"role": "assistant", "content": reply})
-                        return reply
-                else:
-                    logging.error(f"HF AI status {resp.status}: {await resp.text()}")
-    except Exception as e:
-        logging.error(f"HF AI error: {e}")
-    return "чето инет лагает, повтори"
+    for model_name in ("openai", "mistral"):
+        payload["model"] = model_name
+        try:
+            async with aiohttp.ClientSession() as http:
+                async with http.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json(content_type=None)
+                        reply = data["choices"][0]["message"]["content"].strip()
+                        reply = reply.rstrip(".").strip().lower()
+                        if reply:
+                            history.append({"role": "assistant", "content": reply})
+                            return reply
+                    else:
+                        logging.error(f"AI status {resp.status}: {await resp.text()}")
+        except Exception as e:
+            logging.error(f"AI error ({model_name}): {e}")
+        await asyncio.sleep(4)
+
+    return "секунду, отвлёкся, повтори"
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
     try:
         await asyncio.sleep(AI_WAIT_SECONDS)
