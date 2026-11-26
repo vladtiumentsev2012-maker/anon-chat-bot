@@ -103,7 +103,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                 "Authorization": f"Bearer {access_token}",
             }
             import re
-                 payload = {
+            payload = {
                 "model": "GigaChat",
                 "messages": [
                     {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
