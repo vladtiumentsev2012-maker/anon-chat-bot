@@ -94,8 +94,8 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                 "Accept": "application/json",
                 "Authorization": f"Bearer {access_token}",
             }
-                import re
-                payload = {
+            import re
+            payload = {
                 "model": "GigaChat",
                 "messages": [
                     {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
