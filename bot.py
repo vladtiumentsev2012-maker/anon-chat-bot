@@ -103,14 +103,14 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                 "Authorization": f"Bearer {access_token}",
             }
             import re
-            payload = {
+                 payload = {
                 "model": "GigaChat",
                 "messages": [
                     {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
                     *history,
                 ],
-                "temperature": 0.95,
-                "max_tokens": 45,
+                "temperature": 0.65,
+                "max_tokens": 35,
             }
             async with http.post(chat_url, headers=chat_headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
                 if resp.status == 200:
@@ -120,9 +120,13 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                     reply = re.sub(r"\bчел[а-я]*\b,?\s*", "", reply).strip()
                     bad_words = ("генеративн", "языков", "модел", "чувствительн", "ограничен", "виртуальн", "нейросет", "искусствен", "алгоритм")
                     if any(w in reply for w in bad_words):
-                        reply = random.choice(["фу, че ты несешь вообще", "давай без этой дичи", "чел ты странный какой-то", "не, мимо"])
+                        reply = random.choice([
+                            "ты че несешь вообще", "ну и бред", "мда, ясно все с тобой",
+                            "чел, успокойся", "скучно с тобой", "ой все, забей",
+                            "ты нормальный вообще?", "че за дичь"
+                        ])
                     if reply:
-                        await asyncio.sleep(min(len(reply) * 0.08 + 1.2, 5.0))
+                        await asyncio.sleep(min(len(reply) * 0.08 + 1.5, 4.5))
                         history.append({"role": "assistant", "content": reply})
                         return reply
                 else:
@@ -678,11 +682,18 @@ async def relay_messages(message: types.Message):
         if not message.text:
             await message.answer("я щас без наушников и инет тупит, напиши текстом")
             return
-        await bot.send_chat_action(uid, "typing")
-        await asyncio.sleep(random.uniform(1.2, 2.4))
-        reply = await generate_ai_reply(uid, message.text)
-        if uid in ai_chats:
-            await message.answer(reply)
+        if ai_chats[uid].get("busy"):
+            ai_chats[uid]["history"].append({"role": "user", "content": message.text})
+            return
+        ai_chats[uid]["busy"] = True
+        try:
+            await bot.send_chat_action(uid, "typing")
+            reply = await generate_ai_reply(uid, message.text)
+            if uid in ai_chats:
+                await message.answer(reply)
+        finally:
+            if uid in ai_chats:
+                ai_chats[uid]["busy"] = False
         return
     partner_id = active_chats.get(uid)
     if not partner_id:
