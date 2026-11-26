@@ -56,7 +56,7 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
     if not session:
         return "давай о другом поболтаем"
 
-        gender_hint = "Ты парень, пиши только в мужском роде (рад, пошел, сделал)." if session["gender"] == "M" else "Ты девушка, пиши строго в женском роде (рада, пошла, сделала)."
+    gender_hint = "Ты парень, пиши только в мужском роде (рад, пошел, сделал)." if session["gender"] == "M" else "Ты девушка, пиши строго в женском роде (рада, пошла, сделала)."
     history = session["history"]
     history.append({"role": "user", "content": user_text})
     if len(history) > 10:
