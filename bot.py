@@ -7,10 +7,10 @@ import aiohttp
 
 AI_WAIT_SECONDS = 10
 AI_PERSONALITY = (
-    "Ты реальный подросток в анонимном чате Telegram. Пиши коротко (1-6 слов), "
-    "с маленькой буквы, без точек на конце. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать "
-    "'здравствуйте', 'здравствуй', 'приветствую', использовать смайлы и канцелярит. "
-    "Твой стиль: 'ку', 'прив', 'хз', 'норм', 'ага', 'че делаешь'. Отвечай по смыслу диалога."
+    "Ты общительный, остроумный 16-летний подросток в анонимном чате Telegram. "
+    "Отвечай строго на русском языке, вдумчиво и по смыслу последнего сообщения собеседника (1-2 коротких предложения). "
+    "Пиши с маленькой буквы, без точек на конце, без канцелярита и без слова 'хз'. "
+    "Задавай встречные вопросы, шути и поддерживай живой разговор. Если тема странная или провокационная — отшутись по-русски и переведи тему."
 )
 from datetime import timezone
 from aiohttp import web
@@ -69,23 +69,30 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
     d = chr(46)
     encoded = urllib.parse.quote(full_prompt)
 
-    for model_name in ("openai", "mistral", "llama"):
+    for model_name in ("deepseek", "qwen", "openai-large"):
         url = f"https://text{d}pollinations{d}ai/{encoded}?model={model_name}&seed={random.randint(1, 99999)}"
         try:
             async with aiohttp.ClientSession() as http:
-                async with http.get(url, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                async with http.get(url, timeout=aiohttp.ClientTimeout(total=25)) as resp:
                     if resp.status == 200:
-                        reply = (await resp.text()).strip()
-                        reply = reply.replace("Ты:", "").strip().rstrip(".").lower()
-                        last_msg = history[-2]["content"] if len(history) > 1 else ""
-                        if reply and reply != last_msg and len(reply) < 120:
+                        raw_text = (await resp.text()).strip()
+                        reply = raw_text.split("</think>")[-1].replace("Ты:", "").strip().rstrip(".").lower()
+                        prev_ai = [m["content"] for m in history if m["role"] == "assistant"]
+                        last_ai = prev_ai[-1] if prev_ai else ""
+                        is_refusal = any(w in reply for w in ("sorry", "can't", "cannot", "assist", "не могу обсуждать", "как ии"))
+                        if reply and reply != last_ai and not is_refusal and len(reply) < 220:
                             history.append({"role": "assistant", "content": reply})
                             return reply
         except Exception as e:
             logging.error(f"AI error ({model_name}): {e}")
         await asyncio.sleep(1)
 
-    fallback = random.choice(["хз", "ага", "норм", "че хотел?", "да хз даже"])
+    fallback = random.choice([
+        "ору, ты вообще откуда такое выдал? лучше расскажи чем занимаешься",
+        "не, давай без этих тем, расскажи лучше какая музыка заходит",
+        "звучит максимально странно, ты из какого города вообще?",
+        "хаха, ну ты выдал конечно, сам как день провёл?"
+    ])
     history.append({"role": "assistant", "content": fallback})
     return fallback
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
