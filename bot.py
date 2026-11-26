@@ -54,47 +54,70 @@ def cancel_ai_timer(user_id: int):
 async def generate_ai_reply(user_id: int, user_text: str) -> str:
     session = ai_chats.get(user_id)
     if not session:
-        return "хз давай о другом"
+        return "давай о другом поболтаем"
 
     gender_hint = "Ты парень." if session["gender"] == "M" else "Ты девушка, пиши от женского рода."
     history = session["history"]
     history.append({"role": "user", "content": user_text})
-    if len(history) > 8:
-        history = history[-8:]
+    if len(history) > 10:
+        history = history[-10:]
     session["history"] = history
 
-    dialog_lines = [f"{'Собеседник' if m['role'] == 'user' else 'Ты'}: {m['content']}" for m in history]
-    full_prompt = f"{AI_PERSONALITY} {gender_hint}\nПереписка:\n" + "\n".join(dialog_lines) + "\nТы:"
-
-    d = chr(46)
-    encoded = urllib.parse.quote(full_prompt)
-
-    for model_name in ("deepseek", "qwen", "openai-large"):
-        url = f"https://text{d}pollinations{d}ai/{encoded}?model={model_name}&seed={random.randint(1, 99999)}"
-        try:
-            async with aiohttp.ClientSession() as http:
-                async with http.get(url, timeout=aiohttp.ClientTimeout(total=25)) as resp:
-                    if resp.status == 200:
-                        raw_text = (await resp.text()).strip()
-                        reply = raw_text.split("</think>")[-1].replace("Ты:", "").strip().rstrip(".").lower()
-                        prev_ai = [m["content"] for m in history if m["role"] == "assistant"]
-                        last_ai = prev_ai[-1] if prev_ai else ""
-                        is_refusal = any(w in reply for w in ("sorry", "can't", "cannot", "assist", "не могу обсуждать", "как ии"))
-                        if reply and reply != last_ai and not is_refusal and len(reply) < 220:
-                            history.append({"role": "assistant", "content": reply})
-                            return reply
-        except Exception as e:
-            logging.error(f"AI error ({model_name}): {e}")
-        await asyncio.sleep(1)
-
-    fallback = random.choice([
-        "ору, ты вообще откуда такое выдал? лучше расскажи чем занимаешься",
-        "не, давай без этих тем, расскажи лучше какая музыка заходит",
-        "звучит максимально странно, ты из какого города вообще?",
-        "хаха, ну ты выдал конечно, сам как день провёл?"
+    auth_key = "".join([
+        "MDFhMjE2YmUtZDViMy03YTBjLTg2ZDYt",
+        "NmQ0NDg5NDQxZjRlOmI3ZTFhY2M3LTJm",
+        "NzMtNDM4YS1hZGEyLTAyY2IzYzEwMDU5Mg=="
     ])
-    history.append({"role": "assistant", "content": fallback})
-    return fallback
+    d = chr(46)
+    import uuid
+    connector = aiohttp.TCPConnector(ssl=False)
+
+    try:
+        async with aiohttp.ClientSession(connector=connector) as http:
+            oauth_url = f"https://ngw{d}devices{d}sberbank{d}ru:9443/api/v2/oauth"
+            oauth_headers = {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+                "RqUID": str(uuid.uuid4()),
+                "Authorization": f"Basic {auth_key}",
+            }
+            async with http.post(oauth_url, headers=oauth_headers, data={"scope": "GIGACHAT_API_PERS"}, timeout=aiohttp.ClientTimeout(total=15)) as auth_resp:
+                if auth_resp.status != 200:
+                    logging.error(f"GigaChat OAuth error {auth_resp.status}: {await auth_resp.text()}")
+                    return "чето связь барахлит, повтори"
+                token_data = await auth_resp.json()
+                access_token = token_data["access_token"]
+
+            chat_url = f"https://gigachat{d}devices{d}sberbank{d}ru/api/v1/chat/completions"
+            chat_headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {access_token}",
+            }
+            payload = {
+                "model": "GigaChat",
+                "messages": [
+                    {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
+                    *history,
+                ],
+                "temperature": 0.9,
+                "max_tokens": 120,
+            }
+            async with http.post(chat_url, headers=chat_headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    reply = data["choices"][0]["message"]["content"].strip()
+                    reply = reply.rstrip(".").lower()
+                    if reply:
+                        history.append({"role": "assistant", "content": reply})
+                        return reply
+                else:
+                    logging.error(f"GigaChat chat error {resp.status}: {await resp.text()}")
+    except Exception as e:
+        logging.error(f"GigaChat exception: {e}")
+
+    return "чето инет лагает, напиши еще раз"
+
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
     try:
         await asyncio.sleep(AI_WAIT_SECONDS)
