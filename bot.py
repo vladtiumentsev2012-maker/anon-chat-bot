@@ -64,15 +64,15 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
         history = history[-12:]
         session["history"] = history
 
-    gh_token = "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"
+        hf_token = "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"
     d = chr(46)
-    url = f"https://models{d}github{d}ai/inference/chat/completions"
+    url = f"https://router{d}huggingface{d}co/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {gh_token}",
+        "Authorization": f"Bearer {hf_token}",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "openai/gpt-4o-mini",
+        "model": "Qwen/Qwen2.5-72B-Instruct",
         "messages": [
             {"role": "system", "content": f"{AI_PERSONALITY} {gender_hint}"},
             *history,
@@ -92,10 +92,9 @@ async def generate_ai_reply(user_id: int, user_text: str) -> str:
                         history.append({"role": "assistant", "content": reply})
                         return reply
                 else:
-                    logging.error(f"GitHub AI status {resp.status}: {await resp.text()}")
+                    logging.error(f"HF AI status {resp.status}: {await resp.text()}")
     except Exception as e:
-        logging.error(f"GitHub AI error: {e}") 
-
+        logging.error(f"HF AI error: {e}")
     return "чето инет лагает, повтори"
 async def connect_ai_after_timeout(user_id: int, target_gender: str):
     try:
